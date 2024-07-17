@@ -111,7 +111,8 @@ bash run.sh rwk5_7b synthetic
 ## RWKV6 scores
 | Tasks             | niah_single_1 | niah_single_2 | niah_single_3 | niah_multikey_1 | niah_multikey_2 | niah_multikey_3 | niah_multivalue | niah_multiquery | vt     | cwe    | fwe    | qa_1 | qa_2 |
 |-------------------|---------------|---------------|---------------|-----------------|-----------------|-----------------|-----------------|-----------------|--------|--------|--------|------|------|
-| Score             | 100           | 98.67         | 95            | 48.33           | 7.67            | 1.33            | 80.42           | 83.67           | 7.53   | 3
+| Score             | 100           | 98.67         | 95            | 48.33           | 7.67            | 1.33            | 80.42           | 83.67           | 7.53   | 38.6   | 78.33  |45    |37    | 
+
 
 ## 🧠 (Optional) Customize task complexity 
 The tasks to be evaluated on are stored in `scripts/config_tasks.sh`. Configuration of each task is defined in `scripts/synthetic.yaml`. The complexity of each task can be configured by changing the arguments which we describe in detail below.
