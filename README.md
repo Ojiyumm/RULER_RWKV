@@ -1,6 +1,10 @@
 # 📏 RULER: What’s the Real Context Size of Your Long-Context Language Models?
 
 This repository contains code for our paper [RULER: What’s the Real Context Size of Your Long-Context Language Models](https://arxiv.org/abs/2404.06654). RULER generates synthetic examples to evaluate long-context language models with configurable sequence length and task complexity. We benchmark 17 open-source models across 4 task categories (in total 13 tasks) in RULER, evaluating long-context capabilities beyond simple in-context recall. Here are our main results.
+## RWKV6 scores
+| Tasks             | niah_single_1 | niah_single_2 | niah_single_3 | niah_multikey_1 | niah_multikey_2 | niah_multikey_3 | niah_multivalue | niah_multiquery | vt     | cwe    | fwe    | qa_1 | qa_2 |
+|-------------------|---------------|---------------|---------------|-----------------|-----------------|-----------------|-----------------|-----------------|--------|--------|--------|------|------|
+| Score             | 100           | 98.67         | 95            | 48.33           | 7.67            | 1.33            | 80.42           | 83.67           | 7.53   | 38.6   | 78.33  |45    |37    | 
 
 |Models|Claimed Length|Effective Length|4K|8K|16K|32K|64K|128K|Avg.|wAvg. (inc)|wAvg. (dec)|
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -108,10 +112,7 @@ bash run.sh rwk6_7b synthetic
 bash run.sh rwk5_7b synthetic
 ```
 
-## RWKV6 scores
-| Tasks             | niah_single_1 | niah_single_2 | niah_single_3 | niah_multikey_1 | niah_multikey_2 | niah_multikey_3 | niah_multivalue | niah_multiquery | vt     | cwe    | fwe    | qa_1 | qa_2 |
-|-------------------|---------------|---------------|---------------|-----------------|-----------------|-----------------|-----------------|-----------------|--------|--------|--------|------|------|
-| Score             | 100           | 98.67         | 95            | 48.33           | 7.67            | 1.33            | 80.42           | 83.67           | 7.53   | 38.6   | 78.33  |45    |37    | 
+
 
 
 ## 🧠 (Optional) Customize task complexity 
