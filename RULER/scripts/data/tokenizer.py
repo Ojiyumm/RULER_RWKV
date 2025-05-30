@@ -14,6 +14,7 @@
 
 
 import os
+import logging
 from typing import List
 from tenacity import (
     retry,
@@ -32,6 +33,8 @@ def select_tokenizer(tokenizer_type, tokenizer_path):
         return OpenAITokenizer(model_path=tokenizer_path)
     elif tokenizer_type == 'gemini':
         return GeminiTokenizer(model_path=tokenizer_path)
+    elif tokenizer_type == 'rwkv7':
+        return RWKV7Tokenizer()
     else:
         raise ValueError(f"Unknown tokenizer_type {tokenizer_type}")
 
@@ -103,3 +106,39 @@ class GeminiTokenizer:
 
     def tokens_to_text(self, tokens: List[int]) -> str:
         pass
+
+class RWKV7Tokenizer:
+    """
+    Tokenizer for RWKV model
+    """
+    def __init__(self, tokenizer_path="/home/rwkv/Peter/models/v7-pile/20B_tokenizer.json") -> None:
+        from rwkv.utils import PIPELINE
+        
+        # 加载分词器
+        self.pipeline = PIPELINE(None, tokenizer_path)
+        
+    @retry(wait=wait_fixed(60) + wait_random(0, 10), stop=stop_after_attempt(3))
+    def text_to_tokens(self, text: str) -> List[int]:
+        """
+        将文本转换为 token IDs
+        """
+        try:
+            # RWKV 的 encode 方法直接返回 token IDs
+            tokens = self.pipeline.encode(text)
+            return list(tokens)
+        except Exception as e:
+            logging.error(f"Error in text_to_tokens: {e}")
+            raise
+
+    def tokens_to_text(self, tokens: List[int]) -> str:
+        """
+        将 token IDs 转换回文本
+        """
+        try:
+            # RWKV 的 decode 方法将 token IDs 转换回文本
+            text = self.pipeline.decode(tokens)
+            return text
+        except Exception as e:
+            logging.error(f"Error in tokens_to_text: {e}")
+            raise
+

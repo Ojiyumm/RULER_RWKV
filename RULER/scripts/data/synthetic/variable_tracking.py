@@ -34,8 +34,10 @@ from tqdm import tqdm
 import random
 import string
 from constants import TASKS
-from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
+from typing import List, Dict, Any
+# from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
 import sys
+import json
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) 
 from tokenizer import select_tokenizer
@@ -64,6 +66,13 @@ np.random.seed(args.random_seed)
 
 # Load Tokenizer
 TOKENIZER = select_tokenizer(args.tokenizer_type, args.tokenizer_path)
+
+def write_manifest(file_path: str, samples: List[Dict[str, Any]]) -> None:
+    """将样本写入 JSONL 文件"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        for sample in samples:
+            json_line = json.dumps(sample, ensure_ascii=False)
+            f.write(json_line + '\n')
 
 def generate_chains(num_chains, num_hops, is_icl=False):
     
@@ -112,7 +121,7 @@ def generate_input_output(num_noises, num_chains, num_hops, is_icl=False):
     context = context.replace(". \n", ".\n")
 
     template = args.template
-    if is_icl:
+    if is_icl and template != TASKS['variable_tracking']['template'] + TASKS['variable_tracking']['answer_prefix']:
         # remove model template
         cutoff = template.index(TASKS['variable_tracking']['template'][:20])
         cutoff_ans = template.index(TASKS['variable_tracking']['answer_prefix'][:10])
@@ -127,6 +136,13 @@ def generate_input_output(num_noises, num_chains, num_hops, is_icl=False):
 
     return input_text, vars[0]
 
+def randomize_icl(icl_example):
+    icl_tgt_cut = icl_example.index(TASKS['variable_tracking']['answer_prefix'][-10:])
+    icl_tgt = icl_example[icl_tgt_cut+10:].strip().split()
+    for item in icl_tgt:
+        new_item = ''.join(random.choices(string.ascii_uppercase, k=len(item))).upper()
+        icl_example = icl_example.replace(item, new_item)
+    return icl_example
 
 def sys_vartrack_w_noise_random(num_samples: int, max_seq_length: int, incremental: int = 10, 
                                 num_chains: int = 1, num_hops: int = 4,
@@ -161,7 +177,7 @@ def sys_vartrack_w_noise_random(num_samples: int, max_seq_length: int, increment
         used_noises = num_noises
         while(True):
             try:
-                input_text, answer = generate_input_output(num_noises, num_chains, num_hops, is_icl=add_fewshot & (icl_example is None))
+                input_text, answer = generate_input_output(used_noises, num_chains, num_hops, is_icl=add_fewshot & (icl_example is None))
                 length = len(TOKENIZER.text_to_tokens(input_text)) + tokens_to_generate + example_tokens
                 assert length <= max_seq_length, f"{length} exceeds max_seq_length."
                 break
@@ -172,7 +188,7 @@ def sys_vartrack_w_noise_random(num_samples: int, max_seq_length: int, increment
         if add_fewshot and (icl_example is not None):
             # insert icl_example between model template and input
             cutoff = input_text.index(TASKS['variable_tracking']['template'][:20])
-            input_text = input_text[:cutoff] + ' ' + icl_example + '\n\n' + input_text[cutoff:]
+            input_text = input_text[:cutoff] + randomize_icl(icl_example) + '\n\n' + input_text[cutoff:]
         if args.remove_newline_tab:
             input_text = ' '.join(input_text.replace('\n', ' ').replace('\t', ' ').strip().split())
         

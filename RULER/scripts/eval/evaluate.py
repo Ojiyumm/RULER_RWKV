@@ -38,7 +38,9 @@ import yaml
 from pathlib import Path
 from tqdm import tqdm
 from collections import defaultdict
-from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
+from typing import List, Dict, Any
+import json
+# from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, required=True, help='path to the prediction jsonl files')
@@ -57,7 +59,20 @@ def postprocess_pred(predict_str: str, task_config: dict):
 
     return predict_str
 
+def read_manifest(file_path: str) -> List[Dict[str, Any]]:
+    """读取 JSONL 文件，如果文件不存在则返回空列表并打印警告"""
+    if not os.path.exists(file_path):
+        print(f"Warning: The file {file_path} does not exist. Returning an empty list.")
+        return []  # 返回空列表
 
+    # 读取文件内容
+    samples = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            samples.append(json.loads(line.strip()))
+    return samples
+
+    
 def get_pred_and_ref(
     predictions_file: str,
     task_config: dict,
@@ -147,6 +162,13 @@ def write_submission(results: dict):
     dfs = dfs.reset_index(drop=True)
     dfs.to_csv(output_file, index=False)
     print(f'\nSaved submission results to {output_file}')
+
+def write_manifest(file_path: str, samples: List[Dict[str, Any]]) -> None:
+    """将样本写入 JSON 文件"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        for sample in samples:
+            json_line = json.dumps(sample, ensure_ascii=False)
+            f.write(json_line + '\n')
 
 
 def aggregate_chunk(folder):
