@@ -15,6 +15,7 @@
 
 import abc
 import json
+import multiprocessing
 import os
 import re
 import sys
@@ -63,7 +64,7 @@ class Client(abc.ABC):
         # prompts are added later
         request['prompts'] = [f'{prompt}']
         if 'others' in kwargs:
-            requeset['others'] = kwargs['others']
+            request['others'] = kwargs['others']
 
         outputs = self._single_call(**request)
         response = {'text': outputs}
@@ -87,6 +88,21 @@ class Client(abc.ABC):
                 headers={"Content-Type": "application/json"},
             ).json()
         return outputs
+
+    def process_batch(self, prompts: List[str], **kwargs) -> List[dict]:
+        num_threads = max(96, multiprocessing.cpu_count() * 16)
+        with ThreadPoolExecutor(num_threads) as executor:
+            futures = []
+            for prompt in prompts:
+                futures.append(
+                    executor.submit(
+                        self.__call__,
+                        prompt,
+                        **kwargs,
+                    )
+                )
+            rets = [f.result() for f in futures]
+        return rets
 
 
 class TRTLLMClient(Client):

@@ -47,27 +47,51 @@ class HuggingFaceModel:
         self.generation_kwargs = generation_kwargs
         self.stop = self.generation_kwargs.pop('stop')
 
-    def __call__(self, prompt: str, **kwargs) -> Dict[str, List[str]]:
+        if self.tokenizer.pad_token is None:
+            # add pad token to allow batching (known issue for llama2)
+            self.tokenizer.padding_side = 'left'
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+
+
+    def __call__(self, prompt: str, **kwargs) -> dict:
+        return self.process_batch([prompt], **kwargs)[0]
+
+    def process_batch(self, prompts: List[str], **kwargs) -> List[dict]:
         if self.pipeline is None:
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
-            output = self.model.generate(
+            inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.model.device)
+            generated_ids = self.model.generate(
                 **inputs,
                 **self.generation_kwargs
             )
-            generated_text = self.tokenizer.decode(output[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+            generated_texts = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         else:
-            output = self.pipeline(text_inputs=prompt, **self.generation_kwargs,)
-            assert len(output) == 1
-            generated_text = output[0]["generated_text"]
-            
-        # remove the input form the generated text
-        if generated_text.startswith(prompt):
-            generated_text = generated_text[len(prompt) :]
-                
-        if self.stop is not None:
-            for s in self.stop:
-                generated_text = generated_text.split(s)[0]
-        return {'text': [generated_text]}
+            output = self.pipeline(text_inputs=prompts, **self.generation_kwargs, )
+            assert len(output) == len(prompts)
+            # output in the form of a list of list of dictionaries
+            # outer list len = batch size
+            # inner list len = 1
+            generated_texts = [llm_result[0]["generated_text"] for llm_result in output]
+
+        results = []
+
+        for text, prompt in zip(generated_texts, prompts):
+            # remove the input form the generated text
+            # This is a workaround for the llama3 tokenizer not being able to reproduce the same prompt after tokenization
+            # see Issue https://github.com/NVIDIA/RULER/issues/54 for explaination
+            if self.pipeline is None:
+                tokenized_prompt = self.tokenizer(prompt, return_tensors="pt", padding=True)
+                prompt = self.tokenizer.decode(tokenized_prompt.input_ids[0], skip_special_tokens=True)
+            if text.startswith(prompt):
+                text = text[len(prompt):]
+
+            if self.stop is not None:
+                for s in self.stop:
+                    text = text.split(s)[0]
+
+            results.append({'text': [text]})
+
+        return results
 
 
 class MambaModel:
@@ -101,4 +125,92 @@ class MambaModel:
         )
         assert len(out.sequences) == 1
         # detok
-        return {'text': [self.tokenizer.decode(out.sequences[0][input_ids.shape[1] :])]}
+        return {'text': [self.tokenizer.decode(out.sequences[0][input_ids.shape[1]:])]}
+
+    def process_batch(self, prompts: List[str], **kwargs) -> List[dict]:
+        # FIXME: naive implementation
+        return [self.__call__(prompt, **kwargs) for prompt in prompts]
+
+
+import json
+import logging
+import torch
+from typing import Dict, List, Optional
+import os
+
+class RWKVModel:
+    def __init__(self, name_or_path: str, **generation_kwargs) -> None:
+        # 设置环境变量
+        os.environ["RWKV_V7_ON"] = '1'
+        os.environ['RWKV_JIT_ON'] = '1'
+        os.environ["RWKV_CUDA_ON"] = '1'
+        
+        from rwkv.model import RWKV
+        from rwkv.utils import PIPELINE, PIPELINE_ARGS
+        
+        # 加载模型
+        self.model = RWKV(
+            model=name_or_path,
+            strategy='cuda fp16'
+        )
+        
+        # 加载分词器和pipeline
+        tokenizer_path = "rwkv_vocab_v20230424"  # 你可能需要修改这个路径
+        self.pipeline = PIPELINE(self.model, tokenizer_path)
+        
+        # 设置生成参数
+        self.generation_kwargs = generation_kwargs
+        self.stop = self.generation_kwargs.pop('stop', None)
+        
+        # 默认的生成参数
+        self.default_args = PIPELINE_ARGS(
+            temperature=generation_kwargs.get('temperature', 1.0),
+            top_p=generation_kwargs.get('top_p', 0.7),
+            top_k=generation_kwargs.get('top_k', 0),
+            alpha_frequency=generation_kwargs.get('alpha_frequency', 0.25),
+            alpha_presence=generation_kwargs.get('alpha_presence', 0.25),
+            alpha_decay=generation_kwargs.get('alpha_decay', 0.996),
+            token_ban=[],
+            token_stop=[],
+            chunk_len=generation_kwargs.get('chunk_len', 256)
+        )
+
+    def __call__(self, prompt: str, **kwargs) -> Dict[str, List[str]]:
+        # 合并默认参数和新参数
+        current_kwargs = self.generation_kwargs.copy()
+        current_kwargs.update(kwargs)
+        
+        # 创建输出收集器
+        generated_text = []
+        def collector(text):
+            generated_text.append(text)
+        
+        # 生成文本
+        self.pipeline.generate(
+            prompt,
+            token_count=current_kwargs.get('max_new_tokens', 200),
+            args=self.default_args,
+            callback=collector
+        )
+        
+        # 合并生成的文本
+        output_text = ''.join(generated_text)
+        
+        # 移除输入提示
+        if output_text.startswith(prompt):
+            output_text = output_text[len(prompt):]
+        
+        # 处理停止标记
+        if self.stop is not None:
+            for s in self.stop:
+                output_text = output_text.split(s)[0]
+                
+        return {'text': [output_text]}
+
+    def process_batch(self, prompts: List[str], **kwargs) -> List[Dict[str, List[str]]]:
+        """处理多个提示并返回生成的文本"""
+        results = []
+        for prompt in prompts:
+            result = self.__call__(prompt, **kwargs)
+            results.append(result)
+        return results

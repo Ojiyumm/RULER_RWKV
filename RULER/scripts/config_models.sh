@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TEMPERATURE="0.4" # greedy
-TOP_P="1.0"
-TOP_K="3"
+TEMPERATURE="0" # greedy
+TOP_P="0"
+TOP_K="0"
 SEQ_LENGTHS=(
-    8192
+    4096
 )
 
 MODEL_SELECT() {
@@ -28,6 +28,16 @@ MODEL_SELECT() {
         llama2-7b-chat)
             MODEL_PATH="${MODEL_DIR}/llama2-7b-chat-hf"
             MODEL_TEMPLATE_TYPE="meta-chat"
+            MODEL_FRAMEWORK="vllm"
+            ;;
+        llama3.1-8b-chat)
+            MODEL_PATH="${MODEL_DIR}/llama3.1-8b-Instruct"
+            MODEL_TEMPLATE_TYPE="meta-llama3"
+            MODEL_FRAMEWORK="vllm"
+            ;;
+        jamba1.5-mini)
+            MODEL_PATH="${MODEL_DIR}/Jamba-1.5-Mini"
+            MODEL_TEMPLATE_TYPE="jamba"
             MODEL_FRAMEWORK="vllm"
             ;;
         gpt-3.5-turbo)
@@ -68,16 +78,20 @@ MODEL_SELECT() {
             TOKENIZER_TYPE="gemini"
             GEMINI_API_KEY=""
             ;;
-        rwkv6_7b)    
-            MODEL_PATH="/home/rwkv/Peter/rwkv-6-world-7b"
+        rwkv7)
+            MODEL_PATH="/home/rwkv/Peter/models/v7-pile/RWKV-x070-Pile-1.47B-20241210-ctx4096"
             MODEL_TEMPLATE_TYPE="RWKV"
-            MODEL_FRAMEWORK="hf"
-            ;;
-        rwkv5_7b)    
-            MODEL_PATH="/home/rwkv/Peter/hf_models/RWKV_v5-EagleX-v2-7B-HF"
-            MODEL_TEMPLATE_TYPE="RWKV"
-            MODEL_FRAMEWORK="hf"
+            MODEL_FRAMEWORK="rwkv7"
+            TOKENIZER_PATH='/home/rwkv/Peter/models/v7-pile/20B_tokenizer.json'
+            TOKENIZER_TYPE="rwkv7"
             ;;    
+        rwkv7_2.9b)    
+            MODEL_PATH="/home/rwkv/Peter/RULER/rwkv7-g1-2.9b-20250519-ctx4096"
+            MODEL_TEMPLATE_TYPE="RWKV"
+            MODEL_FRAMEWORK="rwkv7"
+            TOKENIZER_PATH='rwkv_vocab_v20230424'
+            TOKENIZER_TYPE="rwkv7"
+            ;;
     esac
 
 

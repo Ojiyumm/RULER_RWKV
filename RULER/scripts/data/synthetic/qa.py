@@ -33,7 +33,8 @@ from pathlib import Path
 from tqdm import tqdm
 import random
 import numpy as np
-from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
+from typing import List, Dict, Any
+# from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
 import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) 
 from tokenizer import select_tokenizer
@@ -193,6 +194,12 @@ def generate_samples(num_samples: int, max_seq_length: int, save_dir: str, incre
 
     return write_jsons
 
+def write_manifest(file_path: str, samples: List[Dict[str, Any]]) -> None:
+    """将样本写入 JSONL 文件"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        for sample in samples:
+            json_line = json.dumps(sample, ensure_ascii=False)
+            f.write(json_line + '\n')
 
 def main():
     save_file = args.save_dir / f'{args.save_name}' / f'{args.subset}.jsonl'

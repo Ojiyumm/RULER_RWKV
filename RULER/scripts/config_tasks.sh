@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-NUM_SAMPLES=100
+NUM_SAMPLES=300
 REMOVE_NEWLINE_TAB=false
-STOP_WORDS=""
+STOP_WORDS="\n\nAssistant"
 
 if [ -z "${STOP_WORDS}" ]; then
     STOP_WORDS=""
@@ -30,8 +30,17 @@ fi
 
 # task name in `synthetic.yaml`
 synthetic=(
-    
-    "niah_single_2"
-    
-    
+    # "niah_single_1"
+    # "niah_single_2"
+    # "niah_single_3"
+    "niah_multikey_1"
+    "niah_multikey_2"
+    "niah_multikey_3"
+    # "niah_multivalue"
+    # "niah_multiquery"
+    # "vt"
+    # "cwe"
+    # "fwe"
+    # "qa_1"
+    # "qa_2"
 )

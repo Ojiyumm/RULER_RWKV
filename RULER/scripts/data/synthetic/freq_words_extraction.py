@@ -35,11 +35,13 @@ from tqdm import tqdm
 import random
 import string
 import numpy as np
-from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
+from typing import List, Dict, Any
+# from nemo.collections.asr.parts.utils.manifest_utils import read_manifest, write_manifest
 import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) 
 from tokenizer import select_tokenizer
 from scipy.special import zeta 
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--save_dir", type=Path, required=True, help='dataset folder to save dataset')
@@ -64,6 +66,9 @@ np.random.seed(args.random_seed)
 
 # Load Tokenizer
 TOKENIZER = select_tokenizer(args.tokenizer_type, args.tokenizer_path)
+
+
+
 
 def generate_input_output(max_len, num_words=-1, coded_wordlen=6, vocab_size=2000, incremental=10, alpha=2.0):
     # generate vocab
@@ -141,6 +146,13 @@ def sys_kwext(num_samples: int, max_seq_length: int, incremental: int = 10):
         write_jsons.append(formatted_output)
 
     return write_jsons
+
+def write_manifest(file_path: str, samples: List[Dict[str, Any]]) -> None:
+    """将样本写入 JSONL 文件"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        for sample in samples:
+            json_line = json.dumps(sample, ensure_ascii=False)
+            f.write(json_line + '\n')
 
 
 def main():   
